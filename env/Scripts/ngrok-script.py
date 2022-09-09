@@ -1,4 +1,4 @@
-#!C:\Users\Usuario\Desktop\ChatBotWhatsapp\env\Scripts\python.exe
+#!C:\Users\yagoc\Documents\Python\ChatBotWhatsapp\env\Scripts\python.exe
 # EASY-INSTALL-ENTRY-SCRIPT: 'pyngrok==5.1.0','console_scripts','ngrok'
 import re
 import sys

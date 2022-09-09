@@ -1,34 +1,37 @@
+
+from dotenv import load_dotenv
 from flask import Flask, request
-import requests
-from twilio.twiml.messaging_response import MessagingResponse
+from twilio.rest import Client
+from Command import Command
+
+load_dotenv()
 
 app = Flask(__name__)
 
+account_sid = 'ACaede7a7f585ae1c0273ff467bd13b78b'
+auth_token = '582fa7f0c97dce2db70608764b262fdb'
 
-@app.route('/bot', methods=['POST'])
-def bot():
-    incoming_msg = request.values.get('Body', '').lower()
-    resp = MessagingResponse()
-    msg = resp.message()
-    responded = False
-    if 'quote' in incoming_msg:
-        # return a quote
-        r = requests.get('https://api.quotable.io/random')
-        if r.status_code == 200:
-            data = r.json()
-            quote = f'{data["content"]} ({data["author"]})'
-        else:
-            quote = 'I could not retrieve a quote at this time, sorry.'
-        msg.body(quote)
-        responded = True
-    if 'cat' in incoming_msg:
-        # return a cat pic
-        msg.media('https://cataas.com/cat')
-        responded = True
-    if not responded:
-        msg.body('I only know about famous quotes and cats, sorry!')
-    return str(resp)
+client = Client(account_sid, auth_token)
+
+print(client.account_sid)
 
 
-if __name__ == '__main__':
-    app.run()
+def respond(to, from_, message) -> str:
+    client.messages.create(
+        from_=from_,
+        body='Successfull',
+        to=to
+    )
+    return 'Successfull'
+
+
+@app.route('/message', methods=['POST'])
+def reply():
+    from_ = request.form.get('From')
+    to = request.form.get('To')
+    message = request.form.get('Body').lower()
+
+    command = Command(from_, message, to)
+
+    if message:
+        return respond(from_, to, message)

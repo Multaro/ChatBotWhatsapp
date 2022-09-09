@@ -1,9 +1,11 @@
 import requests
 from requests.structures import CaseInsensitiveDict
+from dotenv import load_dotenv
 
+load_dotenv('.env')
 
 headers = CaseInsensitiveDict()
-headers['Authorization'] = 'Bearer test_04e21f43ea74c2a6c14433986b0551'
+headers['Authorization'] = os.getenv('BEARER_TOKEN')
 
 url_champs = 'https://api.api-futebol.com.br/v1/campeonatos/'
 url_live = 'https://api.api-futebol.com.br/v1/ao-vivo'

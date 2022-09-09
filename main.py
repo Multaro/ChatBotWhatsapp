@@ -1,20 +1,18 @@
 
+import os
 from dotenv import load_dotenv
 from flask import Flask, request
 from twilio.rest import Client
 from Command import Command
 
-load_dotenv()
+load_dotenv('.env')
 
 app = Flask(__name__)
 
-account_sid = 'ACaede7a7f585ae1c0273ff467bd13b78b'
-auth_token = '582fa7f0c97dce2db70608764b262fdb'
+account_sid = os.getenv('ACCOUNT_SID')
+auth_token = os.getenv('BOT_TOKEN')
 
 client = Client(account_sid, auth_token)
-
-print(client.account_sid)
-
 
 def respond(to, from_, message) -> str:
     client.messages.create(
@@ -35,3 +33,12 @@ def reply():
 
     if message:
         return respond(from_, to, message)
+
+@app.route('/user', methods=['POST'])
+def login():
+    content_type = request.headers.get('Content-Type')
+    if (content_type == 'application/json'):
+        json = request.json
+        return json
+    else:
+        return 'Content-Type not supported!'

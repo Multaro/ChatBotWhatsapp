@@ -1,54 +1,34 @@
-import time
+from flask import Flask, request
+import requests
+from twilio.twiml.messaging_response import MessagingResponse
 
-from selenium import webdriver
-from simon.accounts.pages import LoginPage
-from simon.chat.pages import ChatPage
-from simon.chats.pages import PanePage
-from simon.header.pages import HeaderPage
+app = Flask(__name__)
 
 
-# Creating the driver (browser)
-driver = webdriver.Firefox()
-driver.maximize_window()
-
-# Login
-#       and uncheck the remember check box
-#       (Get your phone ready to read the QR code)
-login_page = LoginPage(driver)
-login_page.load()
-print('tempo')
-time.sleep(20)
-print('fim')
-
-# 1. Get all opened chats
-#       opened chats are the one chats or conversations
-#       you already have in your whatsapp.
-#       IT WONT work if you are looking for a contact
-#       you have never started a conversation.
-pane_page = PanePage(driver)
-print(pane_page)
-
-# get all chats
-print('pegando chats')
-opened_chats = pane_page.opened_chats
-
-print(opened_chats)
-
-for oc in opened_chats:
-    print(oc.name)  # contact name (as appears on your whatsapp)
-    print(oc.icon)  # the url of the image
-    print(oc.last_message)
-    print(oc.last_message_time)  # datetime object
-    print(oc.has_notifications())  # are there unread messages?
-    print(oc.notifications)  # returns a integer with the qty of new
-
-first_chat = opened_chats[0]
-first_chat.click()
+@app.route('/bot', methods=['POST'])
+def bot():
+    incoming_msg = request.values.get('Body', '').lower()
+    resp = MessagingResponse()
+    msg = resp.message()
+    responded = False
+    if 'quote' in incoming_msg:
+        # return a quote
+        r = requests.get('https://api.quotable.io/random')
+        if r.status_code == 200:
+            data = r.json()
+            quote = f'{data["content"]} ({data["author"]})'
+        else:
+            quote = 'I could not retrieve a quote at this time, sorry.'
+        msg.body(quote)
+        responded = True
+    if 'cat' in incoming_msg:
+        # return a cat pic
+        msg.media('https://cataas.com/cat')
+        responded = True
+    if not responded:
+        msg.body('I only know about famous quotes and cats, sorry!')
+    return str(resp)
 
 
-# Logout
-header_page = HeaderPage(driver)
-header_page.logout()
-
-# Close the browser
-driver.quit()
+if __name__ == '__main__':
+    app.run()

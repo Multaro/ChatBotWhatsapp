@@ -1,8 +1,18 @@
 class Command:
+    __user = ''
+    __body = ''
+    __bot = ''
+
     def __init__(self, user: str, body: str, bot: str):
-        self.user = user
-        self.body = body
-        self.bot = bot
-        print(self.user, self.body, self.bot)
-        # self.args = args
-        # self.command = command
+        self.__user = user
+        self.__body = body
+        self.__bot = bot
+
+    def getUser(self) -> str:
+        return self.__user
+
+    def getBody(self) -> str:
+        return self.__body
+
+    def getBot(self) -> str:
+        return self.__bot

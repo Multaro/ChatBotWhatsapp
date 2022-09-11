@@ -9,4 +9,6 @@ config = {
     'raise_on_warnings': True
 }
 
+print('instanciado')
+
 mydb = mysql.connector.connect(**config)

@@ -1,9 +1,12 @@
 
 import os
+import threading
+import logging
 from dotenv import load_dotenv
 from flask import Flask, request
 from twilio.rest import Client
-from Command import Command
+from command import Command
+from dao.dao import MyDB
 
 load_dotenv('.env')
 
@@ -15,25 +18,31 @@ auth_token = os.getenv('BOT_TOKEN')
 client = Client(account_sid, auth_token)
 
 
-def respond(to, from_, message) -> str:
-    client.messages.create(
-        from_=from_,
-        body='Successfull',
-        to=to
-    )
-    return 'Successfull'
+def __threadRespond(command):
+    mydb = MyDB()
+    if mydb.insertCommand(command.getUser(), command.getBody()):
+
+        client.messages.create(
+            from_=command.getBot(),
+            body=command.getBody(),
+            to=command.getUser()
+        )
+
+        logging.info('Message Delivered')
 
 
 @app.route('/message', methods=['POST'])
 def reply():
+    print(request.form.get('Body').lower())
     from_ = request.form.get('From')
     to = request.form.get('To')
     message = request.form.get('Body').lower()
 
-    command = Command(from_, message, to)
-
     if message:
-        return respond(from_, to, message)
+        command = Command(from_, message, to)
+        thread = threading.Thread(target=__threadRespond, args=(command,))
+        thread.start()
+        return '200'
 
 
 @app.route('/user', methods=['POST'])

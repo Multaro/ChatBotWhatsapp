@@ -6,8 +6,8 @@ class MyDB:
     __dao = Singleton()
     __cursor = __dao.cursor()
 
-    def insertCommand(self) -> bool:
-        val = ("19993070538", "pedro.cassiano@sou.fae.br", "ASDS545D", "Pedrin")
+    def insertCommand(self, cel_number: str, auth: str) -> bool:
+        val = (cel_number, "pedro.cassiano@sou.fae.br", auth, "Pedrin")
         try:
             self.__cursor.execute(self.__sql_insert, val)
             self.__dao.commit()

@@ -14,5 +14,6 @@ class MyDB:
             print(self.__cursor.rowcount, "record inserted.")
             return True
 
-        except:
+        except Exception:
+
             return False

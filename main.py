@@ -14,6 +14,7 @@ auth_token = os.getenv('BOT_TOKEN')
 
 client = Client(account_sid, auth_token)
 
+
 def respond(to, from_, message) -> str:
     client.messages.create(
         from_=from_,
@@ -33,6 +34,7 @@ def reply():
 
     if message:
         return respond(from_, to, message)
+
 
 @app.route('/user', methods=['POST'])
 def login():

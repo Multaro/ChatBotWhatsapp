@@ -1,4 +1,5 @@
 import requests
+import os
 from requests.structures import CaseInsensitiveDict
 from dotenv import load_dotenv
 

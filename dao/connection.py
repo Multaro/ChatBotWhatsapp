@@ -1,12 +1,12 @@
 import mysql.connector
 
-class Connection:
-    def __init__(self):
-        mydb = mysql.connector.connect(
-            host="localhost",
-            user="yourusername",
-            password="yourpassword",
-            database="mydatabase"
-        )
-        
-        print(mydb)
+config = {
+    'user': 'root',
+    'password': 'root',
+    'host': '127.0.0.1',
+    'database': 'bot',
+    'port': 3306,
+    'raise_on_warnings': True
+}
+
+mydb = mysql.connector.connect(**config)

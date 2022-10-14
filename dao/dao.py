@@ -7,12 +7,71 @@ class MyDB:
     __sql_insert = "INSERT INTO USER (TEL_NUMBER, EMAIL, AUTHENTICATION_KEY, AUTHENTICATION, USER_NAME) VALUES (%s, %s, %s, %s, %s)"
     __sql_insert_blacklist = "INSERT INTO BLACKLIST (ID_USER, ID_COMMAND, CONT, TIME, DESCRIPTION) VALUES (%s, %s, %s, %s, %s)"
     __sql_search_user = "SELECT * FROM USER WHERE TEL_NUMBER = %s"
+    _sql_search_commands = "SELECT * FROM COMMANDS"
     __sql_search_user_auth = "SELECT * FROM USER WHERE TEL_NUMBER = %s and AUTHENTICATION = 1"
     __sql_search_commands_user = "SELECT * FROM COMMANDS_USER"
+    _sql_insert_commands = "INSERT INTO COMMANDS (COMMANDS_NAME, DESCRIPTION, STATUS) VALUES (%s, %s, %s)"
+    _sql_delete_commands = "DELETE FROM COMMANDS WHERE COMMANDS_NAME = %s"
     __sql_search_blacklist = "SELECT TIME FROM BLACKLIST WHERE ID_USER = %s"
+    _sql_search_user_manager = "SELECT * FROM USER_MANAGER WHERE (EMAIL = %s or LOGIN = %s)"
     __sql_update_auth = "UPDATE USER SET AUTHENTICATION = 1 WHERE (TEL_NUMBER = %s and AUTHENTICATION_KEY = %s)"
     __dao = Singleton()
     __cursor = __dao.cursor(buffered=True)
+
+    def deleteCommands(self, command_name) -> bool:
+        try:
+            self.__cursor.execute(self._sql_delete_commands, (command_name, ))
+            self.__dao.commit()
+            print(self.__cursor.rowcount, "record(s) deleted")
+
+            return True
+
+        except Exception as e:
+            print(e)
+            return False
+
+    def insertCommands(self, command) -> bool:
+        try:
+            if isinstance(command, dict):
+                val = (command['command_name'],
+                       command['description'], command['status'])
+                self.__cursor.execute(self._sql_insert_commands, val)
+                self.__dao.commit()
+                print(self.__cursor.rowcount, "record inserted.")
+
+                return True
+
+            for c in command:
+                val = (c['command_name'],
+                       c['description'], c['status'])
+                self.__cursor.execute(self._sql_insert_commands, val)
+                self.__dao.commit()
+                print(self.__cursor.rowcount, "record inserted.")
+
+            return True
+
+        except Exception as e:
+            print(e)
+            return False
+
+    def searchAllCommands(self) -> list:
+        all_commands = []
+        try:
+            self.__cursor.execute(self._sql_search_commands, )
+            results = self.__cursor.fetchall()
+
+            for result in results:
+                all_commands.append({
+                    'command_name': result[1],
+                    'description': result[2],
+                    'status': bool(result[3])
+                })
+
+            return all_commands
+
+        except Exception as e:
+            print(e)
+            return []
 
     def searchContBlacklist(self, user_number: str) -> tuple:
         date = ''
@@ -29,6 +88,21 @@ class MyDB:
         except Exception as e:
             print(e)
             return -1, 0
+
+    def searchUserManager(self, email: str, login: str) -> tuple:
+        try:
+            self.__cursor.execute(
+                self._sql_search_user_manager, (email, login,))
+            results = self.__cursor.fetchall()
+
+            for result in results:
+                _, manager_email, manager_login, manager_password = result
+
+            return (manager_login, manager_email, manager_password)
+
+        except Exception as e:
+            print(e)
+            return ()
 
     def insertCommand(self, cel_number: str, auth: str) -> bool:
         val = (cel_number, "pedro.cassiano@sou.fae.br", auth, "Pedrin")

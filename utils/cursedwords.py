@@ -1,4 +1,6 @@
 
+# tirar da classe
+
 class CursedWords:
 
     def readerCursedWords(self) -> list:

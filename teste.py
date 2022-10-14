@@ -1,8 +1,12 @@
-from dao.dao import MyDB
-# from dao.database import Database
+from main import db, app
 
-teste = MyDB()
-# Create Database.
-# Database()
+class Users(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50))
+    mail = db.Column(db.String(50))
+    password = db.Column(db.String(50))
 
-print(teste.insertCommand())
+
+with app.app_context():
+    db.create_all()
+

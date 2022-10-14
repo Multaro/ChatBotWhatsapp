@@ -4,19 +4,66 @@ import os
 import logging
 from datetime import datetime
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from twilio.rest import Client
 from command import Command
 # from commands import Commands
 from dao.dao import MyDB
 from utils.mail import SendMail
 from utils.cursedwords import CursedWords
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+import jwt
+import datetime
+from functools import wraps
 
 
 load_dotenv('.env')
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///C:/Users/yagoc/Documents/Python/ChatBotWhatsapp/manager.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 app.config['JSON_AS_ASCII'] = False
+
+db = SQLAlchemy(app)
+
+
+class Users(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    login = db.Column(db.String(50))
+    mail = db.Column(db.String(50))
+    password = db.Column(db.String(50))
+
+
+with app.app_context():
+    db.create_all()
+
+
+def token_required(f):
+    @wraps(f)
+    def decorator(*args, **kwargs):
+
+        token = None
+
+        if 'access-tokens' in request.headers:
+            token = request.headers['access-tokens']
+
+        if not token:
+            return jsonify({'message': 'token válido não encontrado'})
+
+        try:
+            data = jwt.decode(
+                token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            current_user = Users.query.filter_by(
+                login=data['login']).first()
+
+        except Exception:
+            return jsonify({'message': 'token inválida'})
+
+        return f(current_user, *args, **kwargs)
+    return decorator
+
 
 account_sid = os.getenv('ACCOUNT_SID')
 auth_token = os.getenv('BOT_TOKEN')
@@ -138,14 +185,67 @@ def json_example():
     return datas
 
 
-@app.route('/user', methods=['POST'])
-def login():
-    content_type = request.headers.get('Content-Type')
-    if (content_type == 'application/json'):
-        json = request.json
-        return json
-    else:
-        return 'Content-Type not supported!'
+@app.route('/register', methods=['GET', 'POST'])
+def signup_user():
+    data = request.get_json()
+
+    try:
+        user = Users.query.filter_by(login=data['login']).first()
+        print(f'USER {user}')
+
+        if user:
+            return jsonify({'message': 'login ou email já cadastrado'})
+
+        hashed_password = generate_password_hash(
+            data['password'], method='sha256')
+
+        new_user = Users(login=data['login'], mail=data['mail'],
+                         password=hashed_password)
+
+        db.session.add(new_user)
+        db.session.commit()
+
+        return jsonify({'message': 'registrado com sucesso'})
+
+    except Exception:
+        return jsonify({'message': 'erro ao cadastrar usuário'})
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login_user():
+
+    auth = request.authorization
+    print(auth)
+
+    if not auth or not auth.username or not auth.password:
+        return make_response('could not verify', 401, {'WWW.Authentication': 'Basic realm: "login required"'})
+
+    user = Users.query.filter_by(login=auth.username).first()
+
+    if check_password_hash(user.password, auth.password):
+        token = jwt.encode({'login': user.login, 'exp': datetime.datetime.utcnow(
+        ) + datetime.timedelta(minutes=30)}, app.config['SECRET_KEY'])
+        return jsonify({'token': token})
+
+    return make_response('could not verify',  401, {'WWW.Authentication': 'Basic realm: "login required"'})
+
+
+@app.route('/users', methods=['GET'])
+@token_required
+def get_all_users(current_user):
+    users = Users.query.all()
+
+    result = []
+
+    for user in users:
+        user_data = {}
+        user_data['login'] = user.login
+        user_data['mail'] = user.mail
+        user_data['password'] = user.password
+
+        result.append(user_data)
+
+    return jsonify({'users': result, 'manager': current_user.login})
 
 
 @app.route('/cursedwords', methods=['GET', 'POST'])
@@ -153,7 +253,7 @@ def getCursedWords():
     cursedwords_list = cursedwords.readerCursedWords()
     if request.method == 'GET':
         if not cursedwords_list:
-            return 'Error'
+            return jsonify({'message': 'error'})
         return jsonify(cursedwords_list)
 
     content_type = request.headers.get('Content-Type')
@@ -164,6 +264,40 @@ def getCursedWords():
             cursed_words = cursedwords.readerCursedWords()
             print(cursed_words)
             return jsonify(cursed_words)
-        return 'Error'
+        return jsonify({'message': 'error'})
+    else:
+        return jsonify({'message': 'Content-Type not supported!'})
+
+
+@app.route('/commands', methods=['GET', 'POST'])
+@token_required
+def getCommands(current_user):
+    mydb = MyDB()
+    if request.method == 'GET':
+        commands = mydb.searchAllCommands()
+        if not commands:
+            return jsonify({'message': 'nenhum comando existente'})
+
+        return jsonify({'manager': current_user.login, 'commands': commands})
+
+    content_type = request.headers.get('Content-Type')
+
+    if (content_type == 'application/json'):
+        json = request.get_json()
+        if mydb.insertCommands(json):
+            return jsonify({'message': 'comando inserido com sucesso!'})
+
+        return jsonify({'message': 'falha ao inserir comando'})
     else:
         return 'Content-Type not supported!'
+
+
+@app.route('/commands/<command_name>', methods=['DELETE'])
+@token_required
+def delete_author(current_user, command_name):
+    mydb = MyDB()
+
+    if not mydb.deleteCommands(command_name):
+        return jsonify({'message': 'falha ao excluir comando'})
+
+    return jsonify({'manager': current_user.login, 'message': f'{command_name} excluido com sucesso!'})

@@ -11,7 +11,7 @@ class MyDB:
     __sql_search_user_auth = "SELECT * FROM USER WHERE TEL_NUMBER = %s and AUTHENTICATION = 1"
     __sql_search_commands_user = "SELECT * FROM COMMANDS_USER"
     _sql_insert_commands = "INSERT INTO COMMANDS (COMMANDS_NAME, DESCRIPTION, STATUS) VALUES (%s, %s, %s)"
-    _sql_delete_commands = "DELETE FROM COMMANDS WHERE COMMANDS_NAME = %s"
+    _sql_delete_commands = "DELETE FROM COMMANDS WHERE ID = %s"
     __sql_search_blacklist = "SELECT TIME FROM BLACKLIST WHERE ID_USER = %s"
     _sql_search_user_manager = "SELECT * FROM USER_MANAGER WHERE (EMAIL = %s or LOGIN = %s)"
     __sql_update_auth = "UPDATE USER SET AUTHENTICATION = 1 WHERE (TEL_NUMBER = %s and AUTHENTICATION_KEY = %s)"
@@ -26,32 +26,19 @@ class MyDB:
 
             return True
 
-        except Exception as e:
-            print(e)
+        except Exception:
             return False
 
     def insertCommands(self, command) -> bool:
         try:
-            if isinstance(command, dict):
-                val = (command['command_name'],
-                       command['description'], command['status'])
-                self.__cursor.execute(self._sql_insert_commands, val)
-                self.__dao.commit()
-                print(self.__cursor.rowcount, "record inserted.")
-
-                return True
-
-            for c in command:
-                val = (c['command_name'],
-                       c['description'], c['status'])
-                self.__cursor.execute(self._sql_insert_commands, val)
-                self.__dao.commit()
-                print(self.__cursor.rowcount, "record inserted.")
+            val = (command_name, command_description, command_status)
+            self.__cursor.execute(self._sql_insert_commands, val)
+            self.__dao.commit()
+            print(self.__cursor.rowcount, "record inserted.")
 
             return True
 
-        except Exception as e:
-            print(e)
+        except Exception:
             return False
 
     def searchAllCommands(self) -> list:
@@ -62,6 +49,7 @@ class MyDB:
 
             for result in results:
                 all_commands.append({
+                    'id': result[0],
                     'command_name': result[1],
                     'description': result[2],
                     'status': bool(result[3])
@@ -69,8 +57,7 @@ class MyDB:
 
             return all_commands
 
-        except Exception as e:
-            print(e)
+        except Exception:
             return []
 
     def searchContBlacklist(self, user_number: str) -> tuple:

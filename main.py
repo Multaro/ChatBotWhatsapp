@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from flask import Flask, request, jsonify, make_response
 from twilio.rest import Client
 from command import Command
-# from commands import Commands
+from commands import Commands
 from dao.dao import MyDB
 from utils.mail import SendMail
 from utils.cursedwords import CursedWords
@@ -71,8 +71,9 @@ auth_token = os.getenv('BOT_TOKEN')
 client = Client(account_sid, auth_token)
 
 cursedwords = CursedWords()
-global cursed_words
 cursed_words = cursedwords.readerCursedWords()
+
+commands = Commands()
 
 
 def __respond(command) -> str:
@@ -98,7 +99,7 @@ def __respond(command) -> str:
         return '🚨 Usuário não identificado. 🚨\nUse o seguinte comando: "/login <nome>, <e-mail>"\nExemplo: /login Pedro Miguel, pedromiguel@hotmail.com.'
 
     if not checkAuth:
-        if not '/token' in command.getBody():
+        if '/token' not in command.getBody():
             return '🚨 É necessário autentificar o usuário. 🚨'
 
         token = command.getBody().split('/token')
@@ -111,14 +112,14 @@ def __respond(command) -> str:
 
     if checkPenalization != '':
         # Formatando para comparar com a data atual.
-        checkPenalization_comp = datetime.strptime(
+        checkPenalization_comp = datetime.datetime.strptime(
             checkPenalization, '%d/%m/%y %H:%M:%S')
-        command_time = datetime.now()
+        command_time = datetime.datetime.now()
 
         if checkPenalization_comp > command_time:
-            return f'🚨 Usuário penalizado até {checkPenalization}. 🚨'
+            return f'❌ Usuário penalizado até {checkPenalization}. ❌'
 
-    if not '/' in command.getBody():
+    if '/' not in command.getBody():
         return '❌ Comando não encontrado ❌\nPara obter todos os comandos use: /help'
 
     body = (command.getBody().split('/')[1]).split(' ')
@@ -127,27 +128,16 @@ def __respond(command) -> str:
     user_prompt = body[1] if len(body) > 1 else None
     print(user_prompt)
 
-    print(cursed_words)
-
     if user_prompt in cursed_words:
-        cert, cont = mydb.insertBlackList(command.getUser(), 1, user_prompt)
+        # ALTERAR ID
+        cert, cont = mydb.insertBlackList(
+            command.getUser(), commands.selectCommand(user_commands)['id'],
+            user_prompt)
         print(f'CERT : {cert}')
         return '🚨 Não é permitido buscas no contexto +18 ou violência. 🚨'
 
-    elif 'help' in user_commands:
-        return 'Em construção'
-
-    elif 'championships' in user_commands:
-        # colocar insert do comando
-        print(user_prompt)
-
-    elif 'live' in user_commands:
-        # colocar insert do comando
-        print(user_prompt)
-
-    elif 'table' in user_commands:
-        # colocar insert do comando
-        print(user_prompt)
+    elif user_commands:
+        return commands.responseCommand(user_commands, user_prompt)
 
     else:
         return '❌ Comando não encontrado ❌\nPara obter todos os comandos use: /help'
@@ -231,8 +221,7 @@ def login_user():
 
 
 @app.route('/users', methods=['GET'])
-@token_required
-def get_all_users(current_user):
+def get_all_users():
     users = Users.query.all()
 
     result = []
@@ -245,7 +234,7 @@ def get_all_users(current_user):
 
         result.append(user_data)
 
-    return jsonify({'users': result, 'manager': current_user.login})
+    return jsonify({'users': result, 'manager': ''})
 
 
 @app.route('/cursedwords', methods=['GET', 'POST'])
@@ -272,19 +261,20 @@ def getCursedWords():
 @app.route('/commands', methods=['GET', 'POST'])
 @token_required
 def getCommands(current_user):
-    mydb = MyDB()
     if request.method == 'GET':
-        commands = mydb.searchAllCommands()
+        commands_response = commands.getCommands()
+
         if not commands:
             return jsonify({'message': 'nenhum comando existente'})
 
-        return jsonify({'manager': current_user.login, 'commands': commands})
+        print(commands.getCommands())
+        return jsonify({'manager': current_user.login, 'commands': commands_response})
 
     content_type = request.headers.get('Content-Type')
 
     if (content_type == 'application/json'):
         json = request.get_json()
-        if mydb.insertCommands(json):
+        if commands.incrementCommands(json):
             return jsonify({'message': 'comando inserido com sucesso!'})
 
         return jsonify({'message': 'falha ao inserir comando'})
@@ -295,9 +285,7 @@ def getCommands(current_user):
 @app.route('/commands/<command_name>', methods=['DELETE'])
 @token_required
 def delete_author(current_user, command_name):
-    mydb = MyDB()
-
-    if not mydb.deleteCommands(command_name):
+    if not commands.deleteCommands(id):
         return jsonify({'message': 'falha ao excluir comando'})
 
-    return jsonify({'manager': current_user.login, 'message': f'{command_name} excluido com sucesso!'})
+    return jsonify({'manager': current_user.login, 'message': 'excluido com sucesso!'})
